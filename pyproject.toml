@@ -3,20 +3,22 @@ name = "2023-paper-bll-lml"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = "==3.09.*"
 dependencies = [
-    "keras>=3.11.3",
-    "matplotlib>=3.10.7",
-    "numpy>=2.3.3",
+    "keras<3.0",
+    "matplotlib>=3.9.4",
+    "numpy<2.0",
+    "pandas>=2.3.3",
     "pytest>=8.4.2",
-    "scikit-learn>=1.7.2",
-    "scipy>=1.16.2",
-    "tensorflow>=2.20.0",
-    "torch>=2.8.0",
-    "torchvision>=0.23.0",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.13.1",
+    "tensorflow-probability[tf]",
+    "tensorflow[and-cuda]>=2.15.1",
+    "tf-keras",
+    "torch>=2.0.1",
 ]
 
 [dependency-groups]
 dev = [
-    "ipykernel>=7.0.1",
+    "ipykernel>=6.30.1",
 ]
