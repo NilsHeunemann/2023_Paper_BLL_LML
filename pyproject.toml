@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = "==3.09.*"
 dependencies = [
     "attr>=0.3.2",
+    "casadi>=3.7.2",
     "keras<3.0",
     "matplotlib>=3.9.4",
     "numpy<2.0",

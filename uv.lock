@@ -8,6 +8,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "attr" },
+    { name = "casadi" },
     { name = "keras" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -29,6 +30,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "attr", specifier = ">=0.3.2" },
+    { name = "casadi", specifier = ">=3.7.2" },
     { name = "keras", specifier = "<3.0" },
     { name = "matplotlib", specifier = ">=3.9.4" },
     { name = "numpy", specifier = "<2.0" },
@@ -101,6 +103,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cc/7e/b975b5814bd36faf009faebe22c1072a1fa1168db34d285ef0ba071ad78c/cachetools-6.2.1.tar.gz", hash = "sha256:3f391e4bd8f8bf0931169baf7456cc822705f4e2a31f840d218f445b9a854201", size = 31325, upload-time = "2025-10-12T14:55:30.139Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/96/c5/1e741d26306c42e2bf6ab740b2202872727e0f606033c9dd713f8b93f5a8/cachetools-6.2.1-py3-none-any.whl", hash = "sha256:09868944b6dde876dfd44e1d47e18484541eaf12f26f29b7af91b26cc892d701", size = 11280, upload-time = "2025-10-12T14:55:28.382Z" },
+]
+
+[[package]]
+name = "casadi"
+version = "3.7.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/92/62/1e98662024915ecb09c6894c26a3f497f4afa66570af3f53db4651fc45f1/casadi-3.7.2.tar.gz", hash = "sha256:b4d7bd8acdc4180306903ae1c9eddaf41be2a3ae2fa7154c57174ae64acdc60d", size = 6053600, upload-time = "2025-09-10T10:05:49.521Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0a/2f/816d31695e228fe3d5fdb669d25e2439ecfbd678dcaf342a41ff9d761196/casadi-3.7.2-cp39-none-macosx_10_13_x86_64.macosx_10_13_intel.whl", hash = "sha256:f6382470e3c0aed6e73dca12646a3a34143c5d95ca3dfec711bdff702812600b", size = 47111510, upload-time = "2025-09-10T07:56:23.032Z" },
+    { url = "https://files.pythonhosted.org/packages/30/f9/89d191b5eaccebc8c0f7c526363a51d6ea5d501e5aed1537d31f4359b764/casadi-3.7.2-cp39-none-macosx_11_0_arm64.whl", hash = "sha256:ba2fb1d462bb4a8fd2182eeedb4acf93813264c71fe0bd8c2f550cee5583385f", size = 42294083, upload-time = "2025-09-10T08:29:57.273Z" },
+    { url = "https://files.pythonhosted.org/packages/09/64/6e419ecc072a6cea3fb1a9b6e560a303e3bc46a78a614ef2fd27fe84a04a/casadi-3.7.2-cp39-none-manylinux2014_aarch64.whl", hash = "sha256:336e584a4dddbeb276a1a9e670642bf803b369f641e21303f5d7d4c579853ced", size = 47277070, upload-time = "2025-09-10T08:30:32.732Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/fb/9696bfce954928343385fae7d4841859f1c0ee1d73b12f262a357247d6be/casadi-3.7.2-cp39-none-manylinux2014_i686.whl", hash = "sha256:8a8acc6def681d002af0438e01f608301c9585640fd6e2f3d42328e21ad2c8a6", size = 72438808, upload-time = "2025-09-10T08:31:48.801Z" },
+    { url = "https://files.pythonhosted.org/packages/29/b0/4d7200580e42a56a9cc9f14a80b6bcc4499307ba3af62c908755c9040448/casadi-3.7.2-cp39-none-manylinux2014_x86_64.whl", hash = "sha256:7ac98d0262889d52307e777ffde6106c6ad1e7992e96976d08a50719a973c8cc", size = 75574374, upload-time = "2025-09-10T08:33:27.273Z" },
+    { url = "https://files.pythonhosted.org/packages/65/0c/7f467c29a5c8bade35877eda914c2d69c70c4745915c76ff3e0b449e1a35/casadi-3.7.2-cp39-none-win_amd64.whl", hash = "sha256:490b63893d131772c498556703c54a1a6daea78e894ee8955779508a4c3bbc31", size = 50993963, upload-time = "2025-09-10T08:34:06.246Z" },
 ]
 
 [[package]]

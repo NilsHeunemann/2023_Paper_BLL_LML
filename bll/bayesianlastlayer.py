@@ -1,12 +1,19 @@
-from attr import has
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 import pdb
-import tools
 import copy
 import pickle
 from pathlib import Path
+import sys
+if "pytest" in sys.modules:
+    import bll.tools as tools
+else:
+    import tools
+
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class LogMarginalLikelihood:
     """Train :py:class:`bll.BayesianLastLayer` with log marginal likelihood.
@@ -873,11 +880,12 @@ def get_model(n_in,n_out, seed):
 
     model_input = keras.Input(shape=(n_in,))
 
+    initalizer = tf.keras.initializers.Constant(value=1)
     # Hidden units
     architecture = [
-    (keras.layers.Dense, {'units': 20, 'activation': tf.math.sin, 'name': '01_dense'}),
-    (keras.layers.Dense, {'units': 20, 'activation': tf.nn.tanh, 'name': '02_dense'}),
-    (keras.layers.Dense, {'name': 'output', 'units': n_out})
+    (keras.layers.Dense, {'units': 20, 'activation': tf.math.sin, 'name': '01_dense', 'kernel_initializer': initalizer, 'bias_initializer': initalizer}),
+    (keras.layers.Dense, {'units': 20, 'activation': tf.nn.tanh, 'name': '02_dense', 'kernel_initializer': initalizer, 'bias_initializer': initalizer}),
+    (keras.layers.Dense, {'name': 'output', 'units': n_out, 'kernel_initializer': initalizer, 'bias_initializer': initalizer})
     ]
 
     # Get layers and outputs:
@@ -983,7 +991,8 @@ def test():
     ax[1].set_xlabel('log(alpha)')
     ax[1].set_ylabel('lml')
     fig.tight_layout()
-    fig.show()
+    # fig.show()
+    plt.show()
 
 if __name__ == "__main__":
     test()
