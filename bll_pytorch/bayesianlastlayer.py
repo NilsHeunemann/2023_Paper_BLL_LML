@@ -326,7 +326,9 @@ class LogMarginalLikelihood(nn.Module):
             raise RuntimeError('Call setup_training() first.')
         self._check_data_validity(x, y)
         if batch_size is not None:
-            raise NotImplementedError('Batch training is not implemented yet.')
+            # this was in the original code, but batch training seems to be implemented????
+            # raise NotImplementedError('Batch training is not implemented yet.')
+            pass
         if isinstance(val, (tuple, list)):
             self._check_data_validity(*val)
 
@@ -668,7 +670,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
             # Get covariance of the i-th output. The covariance is still scaled.
             cov_i_scaled = sigma_e2_i * cov_0 
             if with_noise_variance:
-                cov_i_scaled += sigma_e2_i * np.eye(m_test)
+                cov_i_scaled += sigma_e2_i * torch.eye(m_test)
 
             # Unscale the covariance of the i-th output. Consider rules of linear transformation of Gaussian variables 
             # e.g. https://services.math.duke.edu/~wka/math135/gaussian.pdf
