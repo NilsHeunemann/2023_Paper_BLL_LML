@@ -1,5 +1,4 @@
 import numpy as np
-import pdb
 import copy
 import pickle
 from pathlib import Path
@@ -8,12 +7,8 @@ import torch
 from torch import nn
 
 import sys
-if "pytest" in sys.modules:
-    import bll_pytorch.tools as tools
-    from bll_pytorch.torch_model import JointModel, sin_activation
-else:
-    import tools
-    from torch_model import JointModel, sin_activation
+import bll_pytorch.tools as tools
+from bll_pytorch.torch_model import JointModel, sin_activation
 
 
 class LogMarginalLikelihood(nn.Module):

@@ -1,26 +1,22 @@
 [project]
-name = "2023-paper-bll-lml"
-version = "0.1.0"
+name = "bll_pytorch"
+version = "0.2.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = "==3.09.*"
+requires-python = ">=3.10"
 dependencies = [
-    "attr>=0.3.2",
-    "casadi>=3.7.2",
-    "keras<3.0",
-    "matplotlib>=3.9.4",
-    "numpy<2.0",
-    "pandas>=2.3.3",
-    "pytest>=8.4.2",
-    "scikit-learn>=1.6.1",
-    "scipy>=1.13.1",
-    "tensorflow-probability[tf]",
-    "tensorflow[and-cuda]>=2.15.1",
-    "tf-keras",
-    "torch>=2.0.1",
+    "matplotlib>=3.10.7",
+    "numpy>=2.2.6",
+    "scikit-learn>=1.7.2",
+    "torch>=2.9.0",
 ]
 
-[dependency-groups]
-dev = [
-    "ipykernel>=6.30.1",
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu128"},
 ]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
