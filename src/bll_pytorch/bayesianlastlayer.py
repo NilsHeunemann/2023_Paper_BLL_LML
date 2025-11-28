@@ -354,9 +354,7 @@ class LogMarginalLikelihood(nn.Module):
             raise RuntimeError("Call setup_training() first.")
         self._check_data_validity(x, y)
         if batch_size is not None:
-            # this was in the original code, but batch training seems to be implemented????
-            # raise NotImplementedError('Batch training is not implemented yet.')
-            pass
+            raise NotImplementedError('Batch training is not implemented yet.')
         if isinstance(val, (tuple, list)):
             self._check_data_validity(*val)
 
