@@ -10,6 +10,7 @@ import sys
 import bll_pytorch.tools as tools
 from bll_pytorch.torch_model import JointModel, sin_activation
 
+from typing import Union, Tuple
 
 class LogMarginalLikelihood(nn.Module):
     """Train :py:class:`bll.BayesianLastLayer` with log marginal likelihood.
@@ -17,12 +18,13 @@ class LogMarginalLikelihood(nn.Module):
     This class is inherited to :py:class:`bll.BayesianLastLayer` and cannot be used on its own.
 
     Args:
+        n_y (int): Number of outputs of the model.
         log_alpha_0 (float, int): Initial value for the log of the signal to noise ratio. 
         log_sigma_e_0 (float, int): Initial value for the log of the noise standard deviation.
         train_alpha (bool): Whether to train ``log_alpha`` during training.
         train_sigma_e (bool): Whether to train ``log_sigma_e`` during training.
     """
-    def __init__(self, n_y, log_alpha_0 = 4, log_sigma_e_0 = -1, train_alpha = True, train_sigma_e = True):
+    def __init__(self, n_y: int, log_alpha_0: Union[float, int] = 4, log_sigma_e_0: Union[float, int] = -1, train_alpha: bool = True, train_sigma_e: bool = True):
         super(LogMarginalLikelihood, self).__init__()
 
         self.flags = {
@@ -30,30 +32,29 @@ class LogMarginalLikelihood(nn.Module):
         }
 
         # Create vector for initial values of log_sigma_e
-        log_sigma_e_0 = np.ones(n_y, dtype='float32')*log_sigma_e_0
-        log_sigma_e_0 = torch.tensor(log_sigma_e_0, dtype=torch.get_default_dtype())
-        log_alpha = torch.tensor(log_alpha_0, dtype=torch.get_default_dtype())
+        log_sigma_e_0_tensor: torch.Tensor = torch.ones(n_y, dtype=torch.get_default_dtype())*log_sigma_e_0
+        log_alpha_tensor = torch.tensor(log_alpha_0, dtype=torch.get_default_dtype())
 
         self.train_alpha = train_alpha
         self.train_sigma_e = train_sigma_e
 
         if train_alpha:
-            self._log_alpha = nn.Parameter(log_alpha)
+            self._log_alpha = nn.Parameter(log_alpha_tensor)
         else:
-            self._log_alpha = log_alpha
+            self._log_alpha = log_alpha_tensor
 
         if train_sigma_e:
-            self.log_sigma_e = nn.Parameter(log_sigma_e_0)
+            self.log_sigma_e = nn.Parameter(log_sigma_e_0_tensor)
         else:
-            self.log_sigma_e = log_sigma_e_0
+            self.log_sigma_e = log_sigma_e_0_tensor
 
     @property
-    def log_sigma_w(self):
+    def log_sigma_w(self) -> torch.Tensor:
         """Retrieve ``log_sigma_w`` from ``alpha`` and ``log_sigma_e``.
 
         When setting a value for ``log_sigma_w``, the value for ``alpha`` is updated accordingly.
         """
-        return self.log_alpha/2 + self.log_sigma_e
+        return self.log_alpha / 2 + self.log_sigma_e
 
     @log_sigma_w.setter
     def log_sigma_w(self, log_sigma_w):
@@ -61,7 +62,7 @@ class LogMarginalLikelihood(nn.Module):
         self.log_alpha = 2*log_sigma_w - 2*self.log_sigma_e
 
     @property
-    def log_alpha(self):
+    def log_alpha(self) -> torch.Tensor:
         """Retrieve ``log_alpha`` or update ``log_alpha``.
         
         When setting a value for ``log_alpha`` and if training was already completed,
@@ -71,7 +72,7 @@ class LogMarginalLikelihood(nn.Module):
         return self._log_alpha
 
     @log_alpha.setter
-    def log_alpha(self, log_alpha):
+    def log_alpha(self, log_alpha: torch.Tensor):
         if self.train_alpha:
             self._log_alpha = nn.Parameter(0*self._log_alpha + log_alpha)
         else:
@@ -104,7 +105,7 @@ class LogMarginalLikelihood(nn.Module):
         self.flags['setup_training'] = True
 
 
-    def get_Lambda_p_bar(self, Phi):
+    def get_Lambda_p_bar(self, Phi: torch.Tensor) -> torch.Tensor:
         """Compute the scaled posterior precision matrix.
         
         Args:
@@ -125,7 +126,7 @@ class LogMarginalLikelihood(nn.Module):
         return Lambda_p_bar
 
  
-    def lml(self, x, y):
+    def lml(self, x: torch.Tensor, y: torch.Tensor)-> torch.Tensor:
         """Compute the log marginal likelihood of the model.
         This function is used for training the model.
 
@@ -172,7 +173,7 @@ class LogMarginalLikelihood(nn.Module):
         return J
 
 
-    def exact_lml(self, x, y):
+    def exact_lml(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """Compute the exact log marginal likelihood of the model.
         Exact means that we compute the weights of the last layer with the explicit least squares solution 
         and obtain the predicted y_hat by mapping the nonlinear features to the output with these weights.
@@ -228,7 +229,7 @@ class LogMarginalLikelihood(nn.Module):
 
         return J
 
-    def _train_step(self, x, y):
+    def _train_step(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """Perform a single training step.
         
         Computes the loss (based on :py:meth:`lml`) and gradients w.r.t to all ``parameters``, and apply them to the model with the optimizer.
@@ -252,7 +253,7 @@ class LogMarginalLikelihood(nn.Module):
         # Return the loss value 
         return loss_value
 
-    def _check_data_validity(self, x, y=None):
+    def _check_data_validity(self, x: torch.Tensor, y: Union[torch.Tensor, None] = None) -> None:
         """Check if the data is valid. Check either just inputs or inputs and outputs.
 
         Warning:
@@ -289,7 +290,7 @@ class LogMarginalLikelihood(nn.Module):
                 pass
 
 
-    def fit(self, x, y, val=None, epochs=100, batch_size=None, verbose=False, **kwargs):
+    def fit(self, x: Union[torch.Tensor, np.ndarray], y: Union[torch.Tensor, np.ndarray], val: Union[tuple, None] = None, epochs: int = 100, batch_size: Union[int, None] = None, verbose: bool = False, **kwargs) -> None:
         """Train the model on the given data.
 
         Internally, the method calls the :py:meth:`_train_step` method for each training step which in turn evaluates the loss function (based on :py:meth:`lml`) 
@@ -406,7 +407,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
         BayesianLastLayer: Bayesian last layer model.
 
     """
-    def __init__(self, joint_model, scaler, *args, **kwargs):
+    def __init__(self, joint_model: torch.nn.Module, scaler, *args, **kwargs):
         # Sanity checks
         # TODO: port check to pytorch
         # if len(joint_model.outputs) != 2:
@@ -420,13 +421,13 @@ class BayesianLastLayer(LogMarginalLikelihood):
         super(BayesianLastLayer, self).__init__(n_y, *args, **kwargs)
 
         # Store the joint model
-        self.joint_model = joint_model
+        self.joint_model: torch.nn.Module = joint_model
         # Number of inputs
-        self.n_x = joint_model.inputs
+        self.n_x: int = joint_model.inputs
         # Number of outputs
-        self.n_y = joint_model.outputs
+        self.n_y: int = joint_model.outputs
         # Number of features (considering the bias term):
-        self.n_phi = joint_model.feature_dim + 1 # TODO: check if this is correct
+        self.n_phi: int = joint_model.feature_dim + 1 # TODO: check if this is correct
 
         self.scaler = scaler
         if self.n_x != scaler.n_x:
@@ -460,7 +461,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
         return return_str
 
 
-    def fit(self, x, y, *args, **kwargs):
+    def fit(self, x: Union[torch.Tensor, np.ndarray], y: Union[torch.Tensor, np.ndarray], *args, **kwargs) -> None:
         """
         Calls the :py:meth:`fit` method of the base class :py:class:`LogMarginalLikelihood`.
 
@@ -471,7 +472,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
         self.prepare_prediction(x)
         
         
-    def prepare_prediction(self, X_train):
+    def prepare_prediction(self, X_train: torch.Tensor) -> None:
         """Prepare the prediction by computing the posterior precision matrix and the covariance matrix of the weights.
         These matrices do not change after training and should only be computed once to accelerate the call of of :py:meth:`predict`.
 
@@ -507,7 +508,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
         self.flags['prepare_prediction'] = True
 
-    def score(self, X, Y, scoring, verbose=False, *args, **kwargs):
+    def score(self, X: torch.Tensor, Y: torch.Tensor, scoring: str, verbose: bool = False, *args, **kwargs) -> torch.Tensor:
         """
         Compute the score of the model on the given data.
 
@@ -543,7 +544,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
         return score
 
 
-    def predict(self, x, uncert_type='cov', return_scaled = False, with_noise_variance = False, return_grad = False):
+    def predict(self, x: torch.Tensor, uncert_type: str = 'cov', return_scaled: bool = False, with_noise_variance: bool = False, return_grad: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
         """
         Predict the output of the model for a given input x.
         This evaluates the neural network model and computes the covariance or standard devaiation of the predictive distribution.
@@ -638,7 +639,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
         return out
 
-    def covariance(self, phi, Sigma_p_bar, return_scaled = False, with_noise_variance = False):
+    def covariance(self, phi: torch.Tensor, Sigma_p_bar: torch.Tensor, return_scaled: bool = False, with_noise_variance: bool = False) -> torch.Tensor:
         """Compute the covariance matrix of the predictive distribution.
 
         Warning:
@@ -680,7 +681,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
         return y_hat_covariance
 
-    def std(self, Cov):
+    def std(self, Cov: torch.Tensor) -> torch.Tensor:
         """Convert the covariance matrix to standard deviation.
 
         The standard deviation is reshaped to ``(m, n_y)`` to match the shape of the predictions.
@@ -703,7 +704,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
         return y_hat_std
 
-    def predictivedensity(self, X, y,  aggregate = 'mean'):
+    def predictivedensity(self, X: torch.Tensor, y: torch.Tensor, aggregate: str = 'mean') -> torch.Tensor:
         """Computes the predictive density instead of the log predictive density.
         See documentation of :meth:`lpd` for more information.
         """
@@ -720,7 +721,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
         else:
             raise ValueError(f'Unknown aggregation method {aggregate}') 
 
-    def lpd(self, X, y, aggregate='mean'):
+    def lpd(self, X: torch.Tensor, y: torch.Tensor, aggregate: str = 'mean') -> torch.Tensor:
         """
         Computes the log probability density of observing ``y_hat`` given ``x`` and ``y``
         """
@@ -755,7 +756,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
             raise ValueError(f'Unknown aggregation method {aggregate}') 
 
 
-    def mse(self, X, y):
+    def mse(self, X: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
         Computes the mean squared error of the model
         """
@@ -768,7 +769,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
         return mse
 
 
-    def grid_search_alpha(self, x, y, rel_range=[0,10], scores = ['lpd'], samples=10, max_cond = 1e8, verbose=True, average=True):
+    def grid_search_alpha(self, x: torch.Tensor, y: torch.Tensor, rel_range: list = [0, 10], scores: list = ['lpd'], samples: int = 10, max_cond: float = 1e8, verbose: bool = True, average: bool = True) -> dict:
         """Simple grid search to test different values of alpha.
         The search evaluates the predictive log-probability of the posterior distribution
         for a test set of data (x, y) which must not have been used for training.
@@ -827,7 +828,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
         return results
 
-    def save(self, path, custom_objects={}):
+    def save(self, path: str, custom_objects: dict = {}) -> None:
         """
         Saves the model to a file
         """
