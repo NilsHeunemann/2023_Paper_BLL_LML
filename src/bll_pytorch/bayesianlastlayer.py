@@ -52,12 +52,12 @@ class LogMarginalLikelihood(nn.Module):
         if train_alpha:
             self._log_alpha = nn.Parameter(log_alpha_tensor)
         else:
-            self._log_alpha = log_alpha_tensor
+            self._log_alpha = nn.Buffer(log_alpha_tensor)
 
         if train_sigma_e:
             self.log_sigma_e = nn.Parameter(log_sigma_e_0_tensor)
         else:
-            self.log_sigma_e = log_sigma_e_0_tensor
+            self.log_sigma_e = nn.Buffer(log_sigma_e_0_tensor)
 
     @property
     def log_sigma_w(self) -> torch.Tensor:
@@ -130,7 +130,7 @@ class LogMarginalLikelihood(nn.Module):
             Lambda_p_bar (torch.Tensor): Scaled posterior precision matrix of shape (n_phi, n_phi).
         """
         alpha_inv = torch.exp(-self.log_alpha)
-        Alpha_inv = alpha_inv * torch.eye(self.n_phi)
+        Alpha_inv = alpha_inv * torch.eye(self.n_phi, device=Phi.device)
 
         # Compute Lambda_p_bar
         if Phi.dim() != 2:
@@ -739,7 +739,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
             # Get covariance of the i-th output. The covariance is still scaled.
             cov_i_scaled = sigma_e2_i * cov_0
             if with_noise_variance:
-                cov_i_scaled += sigma_e2_i * torch.eye(m_test)
+                cov_i_scaled += sigma_e2_i * torch.eye(m_test, device=cov_0.device)
 
             # Unscale the covariance of the i-th output. Consider rules of linear transformation of Gaussian variables
             # e.g. https://services.math.duke.edu/~wka/math135/gaussian.pdf
@@ -823,7 +823,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
         logp = -0.5 * self.n_y * torch.log(sigma_y_bar)
         logp += -0.5 * torch.diag(Lambda_y_bar @ dY @ self.Sigma_e_inv @ dY.T)
-        logp += -0.5 * torch.linalg.slogdet(2 * torch.tensor(np.pi) * self.Sigma_e)[1]
+        logp += -0.5 * torch.linalg.slogdet(2 * torch.tensor(np.pi, device=sigma_y_bar.device) * self.Sigma_e)[1]
 
         if aggregate == "none":
             return logp
