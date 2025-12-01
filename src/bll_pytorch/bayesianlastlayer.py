@@ -148,6 +148,7 @@ class LogMarginalLikelihood(nn.Module):
             x (torch.Tensor): Input data of shape (m, n_x).
             y (torch.Tensor): Output data of shape (m, n_y).
         """
+
         # Number of data points
         m = x.shape[0]
 
@@ -156,7 +157,7 @@ class LogMarginalLikelihood(nn.Module):
 
         Phi_tilde, y_hat = self.joint_model(x)  # , training=training)
         # Concat vector of ones to Phi_tilde
-        Phi = torch.cat([Phi_tilde, torch.ones((m, 1))], axis=1)
+        Phi = torch.cat([Phi_tilde, torch.ones((m, 1), device=Phi_tilde.device)], axis=1)
 
         Lambda_p_bar = self.get_Lambda_p_bar(Phi)
 
@@ -209,7 +210,7 @@ class LogMarginalLikelihood(nn.Module):
         # We are not using the prediction y_hat of the model
         Phi_tilde, _ = self.joint_model(x)
         # Concat vector of ones to Phi_tilde
-        Phi = torch.cat([Phi_tilde, torch.ones((m, 1))], axis=1)
+        Phi = torch.cat([Phi_tilde, torch.ones((m, 1), device=Phi_tilde.device)], axis=1)
 
         Lambda_p_bar = self.get_Lambda_p_bar(Phi)
 
@@ -236,7 +237,7 @@ class LogMarginalLikelihood(nn.Module):
 
         # Add the individual terms to the negative log marginal likelihood
         J = 0
-        J += self.n_y / (2) * torch.log(torch.tensor(2 * np.pi))
+        J += self.n_y / (2) * torch.log(torch.tensor(2 * np.pi, device=self.log_alpha.device))
         J += self.n_y / (2 * m) * torch.logdet(Lambda_p_bar)
         J += self.n_y / (2 * m) * (self.n_phi) * self.log_alpha
 
@@ -535,7 +536,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
         self.X_scaled = self.scaler.scale(X=X_train)[0]
 
         Phi = self.joint_model(self.X_scaled)[0]
-        Phi = torch.cat([Phi, torch.tensor(np.ones((self.m, 1)))], axis=1)
+        Phi = torch.cat([Phi, torch.ones((self.m, 1), device=Phi.device)], axis=1)
         self.Phi = Phi
 
         self.Lambda_p_bar = self.get_Lambda_p_bar(self.Phi)
@@ -692,7 +693,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
             grad = tf.squeeze(grad).numpy()
             grad = np.diag(self.scaler.scaler_y.scale_) @ (grad)
 
-        phi = torch.cat((phi_tilde, torch.ones((m_test, 1))), axis=1)
+        phi = torch.cat((phi_tilde, torch.ones((m_test, 1), device=phi_tilde.device)), axis=1)
 
         if return_scaled:
             out = [y_hat_scaled, phi]
