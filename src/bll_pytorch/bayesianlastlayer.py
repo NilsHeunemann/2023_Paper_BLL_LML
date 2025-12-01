@@ -491,9 +491,9 @@ class BayesianLastLayer(LogMarginalLikelihood):
         return_str += "- n_y   = {}\n".format(self.n_y)
         if self.flags["prepare_prediction"]:
             return_str += "Results:\n"
-            return_str += f"- train_lml   = {np.round(np.atleast_1d(self.train_lml.detach().numpy()), 3)}\n"
-            return_str += f"- log_alpha   = {np.round(np.atleast_1d(self.log_alpha.detach().numpy()), 3)}\n"
-            return_str += f"- log_sigma_e = {np.round(np.atleast_1d(self.log_sigma_e.detach().numpy()), 3)}\n"
+            return_str += f"- train_lml   = {np.round(np.atleast_1d(self.train_lml.detach().cpu().numpy()), 3)}\n"
+            return_str += f"- log_alpha   = {np.round(np.atleast_1d(self.log_alpha.detach().cpu().numpy()), 3)}\n"
+            return_str += f"- log_sigma_e = {np.round(np.atleast_1d(self.log_sigma_e.detach().cpu().numpy()), 3)}\n"
 
         return return_str
 
