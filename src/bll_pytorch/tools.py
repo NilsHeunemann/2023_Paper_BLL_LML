@@ -2,21 +2,25 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import pdb
 import torch
+import torch.nn as nn
 from sklearn import preprocessing
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 
-class TorchScaler:
+class TorchScaler(nn.Module):
     """Alternative scaler that works with torch tensors."""
 
     def __init__(self):
+        super(TorchScaler, self).__init__()
         return None
 
     def fit(self, x):
-        self.mean = x.mean(0, keepdim=True)
+        mean = x.mean(0, keepdim=True)
+        self.register_buffer("mean", mean)
         # note: correction=0 for population std, like numpy's default & sklearn
-        self.std = torch.std(x, dim=0, keepdim=True, correction=0)
+        std = torch.std(x, dim=0, keepdim=True, correction=0)
+        self.register_buffer("std", std)
         self.std[self.std == 0] = 1.0
 
         return self
@@ -49,7 +53,7 @@ class TorchScaler:
         return x
 
 
-class Scaler:
+class Scaler(nn.Module):
     """Simple wrapper for the sklearn ``preprocessing.StandardScaler`` class.
 
     The scaler handles the scaling of the input and output data simultaneously.
@@ -60,6 +64,7 @@ class Scaler:
     """
 
     def __init__(self, X=None, Y=None):
+        super(Scaler, self).__init__()
         self.flags = {}
 
         if X is not None:
