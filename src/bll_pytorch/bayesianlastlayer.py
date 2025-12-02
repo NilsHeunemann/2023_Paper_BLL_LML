@@ -261,7 +261,7 @@ class LogMarginalLikelihood(nn.Module):
         """
         # more major rewrite for pytorch needed:
         self.train()
-        self.optimizer.zero_grad()
+        self.optimizer.zero_grad(set_to_none=True)
 
         loss_value = self.lml(x, y)
 
@@ -272,7 +272,7 @@ class LogMarginalLikelihood(nn.Module):
         self.optimizer.step()
 
         # Return the loss value
-        return loss_value
+        return loss_value.detach()
 
     def _check_data_validity(
         self, x: torch.Tensor, y: Union[torch.Tensor, None] = None
@@ -385,12 +385,12 @@ class LogMarginalLikelihood(nn.Module):
             for batch, x_batch_k, y_batch_k in zip(
                 range(n_batches), x_batch_train, y_batch_train
             ):
-                logs["loss"] = self._train_step(x_batch_k, y_batch_k)
+                logs["loss"] = self._train_step(x_batch_k, y_batch_k).item()
                 self.training_history["loss"].append(logs["loss"])
                 self.training_history["epochs"].append(epoch)
 
             if val is not None:
-                logs["val_loss"] = self.lml(val_scaled[0], val_scaled[1])
+                logs["val_loss"] = self.lml(val_scaled[0], val_scaled[1]).item()
                 self.training_history["val_loss"].append(logs["val_loss"])
 
             if verbose and val is not None:
@@ -402,7 +402,7 @@ class LogMarginalLikelihood(nn.Module):
             # if self.joint_model.stop_training:
             #     break
 
-        self.train_lml = self.lml(x_scaled, y_scaled)
+        self.train_lml = self.lml(x_scaled, y_scaled).item()
 
 
 class BayesianLastLayer(LogMarginalLikelihood):
