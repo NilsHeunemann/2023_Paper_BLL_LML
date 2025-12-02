@@ -12,9 +12,9 @@ class JointModel(nn.Module):
             **architecture[-1][1]
         )  # Last layer without activation
 
-        self.inputs = architecture[0][1]["in_features"]
-        self.outputs = architecture[-1][1]["out_features"]
-        self.feature_dim = architecture[-3][1]["out_features"]
+        self.inputs: int = architecture[0][1]["in_features"]
+        self.outputs: int = architecture[-1][1]["out_features"]
+        self.feature_dim: int = architecture[-3][1]["out_features"]
 
     def forward(self, x):
         features = self.hidden(x)

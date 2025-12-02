@@ -363,9 +363,14 @@ class LogMarginalLikelihood(nn.Module):
         m = x.shape[0]
 
         # Scale the data
-        x_scaled, y_scaled = self.scaler.scale(x, y)
-        if val is not None:
-            val_scaled = self.scaler.scale(*val)
+        if self.scaler:
+            x_scaled, y_scaled = self.scaler.scale(x, y)
+            if val is not None:
+                val_scaled = self.scaler.scale(*val)
+        else:
+            x_scaled, y_scaled = x, y
+            if val is not None:
+                val_scaled = val
 
         # batch_size defaults to m
         if batch_size is None:
@@ -440,7 +445,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
     """
 
-    def __init__(self, joint_model: torch.nn.Module, scaler, *args, **kwargs):
+    def __init__(self, joint_model: JointModel, scaler:Union[None, tools.Scaler]=None, *args, **kwargs):
         # Sanity checks
         # TODO: port check to pytorch
         # if len(joint_model.outputs) != 2:
@@ -463,14 +468,15 @@ class BayesianLastLayer(LogMarginalLikelihood):
         self.n_phi: int = joint_model.feature_dim + 1  # TODO: check if this is correct
 
         self.scaler = scaler
-        if self.n_x != scaler.n_x:
-            raise ValueError(
-                "The number of inputs of the joint model and the scaler must be the same."
-            )
-        if self.n_y != scaler.n_y:
-            raise ValueError(
-                "The number of outputs of the joint model and the scaler must be the same."
-            )
+        if scaler:
+            if self.n_x != scaler.n_x:
+                raise ValueError(
+                    "The number of inputs of the joint model and the scaler must be the same."
+                )
+            if self.n_y != scaler.n_y:
+                raise ValueError(
+                    "The number of outputs of the joint model and the scaler must be the same."
+                )
 
         # Initialize the LogMarginalLikelihood base class
 
@@ -533,7 +539,10 @@ class BayesianLastLayer(LogMarginalLikelihood):
         self.m = X_train.shape[0]
 
         # Scale the data
-        self.X_scaled = self.scaler.scale(X=X_train)[0]
+        if self.scaler:
+            self.X_scaled = self.scaler.scale(X=X_train)[0]
+        else:
+            self.X_scaled = X_train
 
         Phi = self.joint_model(self.X_scaled)[0]
         Phi = torch.cat([Phi, torch.ones((self.m, 1), device=Phi.device)], axis=1)
@@ -581,7 +590,10 @@ class BayesianLastLayer(LogMarginalLikelihood):
         """
 
         if scoring == "lml":
-            X_scaled, Y_scaled = self.scaler.scale(X, Y)
+            if self.scaler:
+                X_scaled, Y_scaled = self.scaler.scale(X, Y)
+            else:
+                X_scaled, Y_scaled = X, Y
             score = self.lml(X_scaled, Y_scaled)
         elif scoring == "mse":
             score = self.mse(X, Y)
@@ -641,9 +653,6 @@ class BayesianLastLayer(LogMarginalLikelihood):
             phi, self.Sigma_p_bar, return_scaled, with_noise_variance
         )
 
-        # Store phi for debugging
-        self.phi = phi
-
         out = [y_hat]
 
         if uncert_type == "cov":
@@ -674,7 +683,10 @@ class BayesianLastLayer(LogMarginalLikelihood):
             phi: Feature vector (torch.Tensor of shape (m, n_phi))
         """
         m_test = x.shape[0]
-        x_scaled = self.scaler.scale(X=x)[0]
+        if self.scaler:
+            x_scaled = self.scaler.scale(X=x)[0]
+        else:
+            x_scaled = x
 
         if return_grad:
             raise NotImplementedError(
@@ -698,6 +710,10 @@ class BayesianLastLayer(LogMarginalLikelihood):
         if return_scaled:
             out = [y_hat_scaled, phi]
         else:
+            if self.scaler is None:
+                raise ValueError(
+                    "Scaler is None, cannot unscale the predictions. Set return_scaled=True."
+                )
             y_hat_unscaled = self.scaler.unscale(Y=y_hat_scaled)[0]
             out = [y_hat_unscaled, phi]
 
@@ -746,6 +762,10 @@ class BayesianLastLayer(LogMarginalLikelihood):
             if return_scaled:
                 cov_list.append(cov_i_scaled)
             else:
+                if self.scaler is None:
+                    raise ValueError(
+                        "Scaler is None, cannot unscale the covariance. Set return_scaled=True."
+                    )
                 cov_i = cov_i_scaled * self.scaler.scaler_y.std[0, i] ** 2
                 cov_list.append(cov_i)
 
@@ -807,7 +827,10 @@ class BayesianLastLayer(LogMarginalLikelihood):
         # Sanity checks
         self._check_data_validity(X, y)
         # Scale y
-        _, y_scaled = self.scaler.scale(X, y)
+        if self.scaler:
+            _, y_scaled = self.scaler.scale(X, y)
+        else:
+            y_scaled = y
 
         m_t = X.shape[0]
 
@@ -840,8 +863,11 @@ class BayesianLastLayer(LogMarginalLikelihood):
         """
         # Sanity checks
         self._check_data_validity(X, y)
-        y_scaled = self.scaler.scale(Y=y)[0]
-        y_scaled = y_scaled
+        if self.scaler:
+            y_scaled = self.scaler.scale(Y=y)[0]
+        else:
+            y_scaled = y
+        
         y_pred_scaled, _ = self.predict(X, uncert_type="std", return_scaled=True)
         mse = torch.mean(torch.square(y_pred_scaled - y_scaled)).flatten()
         return mse
