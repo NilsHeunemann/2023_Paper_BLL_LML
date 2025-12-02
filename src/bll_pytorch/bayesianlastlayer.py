@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import copy
 import pickle
@@ -941,16 +942,61 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
         return results
 
-    def save(self, path: str, custom_objects: dict = {}) -> None:
+    def get_save_dict(self) -> dict:
+        """
+        Returns a dictionary with the model parameters to be saved.
+        """
+        save_dict = {
+            "joint_model_architecture": self.joint_model.architecture,
+            "scaler": self.scaler,
+            "bll_state_dict": self.state_dict(),
+            "flags": self.flags,
+        }
+        if self.flags["prepare_prediction"] is True:
+            save_dict["Lambda_p_bar"] = self.Lambda_p_bar
+            save_dict["Sigma_p_bar"] = self.Sigma_p_bar
+            save_dict["Sigma_e"] = self.Sigma_e
+            save_dict["Sigma_e_inv"] = self.Sigma_e_inv
+        return save_dict
+    
+    @classmethod
+    def from_dict(cls, save_dict: dict):
+        """
+        Loads the model from a dictionary
+        """
+        scaler = save_dict["scaler"]
+        # Create a new instance of the class
+        joint_model = JointModel(save_dict["joint_model_architecture"])
+        model = cls(joint_model, scaler)
+
+        # Load the parameters
+        model.flags = save_dict["flags"]
+        model.load_state_dict(save_dict["bll_state_dict"])
+
+        # load prediction parameters if available
+        if save_dict["flags"]["prepare_prediction"] is True:
+            model.Lambda_p_bar = save_dict["Lambda_p_bar"]
+            model.Sigma_p_bar = save_dict["Sigma_p_bar"]
+            model.Sigma_e = save_dict["Sigma_e"]
+            model.Sigma_e_inv = save_dict["Sigma_e_inv"]
+
+        return model
+
+    def save(self, path: Union[str, os.PathLike]) -> None:
         """
         Saves the model to a file
         """
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
-
-        self.custom_objects = custom_objects
-
-        with open(path, "wb") as f:
-            pickle.dump(self, f)
+        save_dict = self.get_save_dict()
+        torch.save(save_dict, path)
+    
+    @classmethod
+    def load(cls, path: Union[str, os.PathLike]):
+        """
+        Loads the model from a file
+        """
+        save_dict = torch.load(path)
+        model = cls.from_dict(save_dict)
+        return model
 
 
 # Functions used for testing the class.
