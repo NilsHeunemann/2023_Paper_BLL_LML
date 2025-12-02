@@ -262,7 +262,7 @@ class LogMarginalLikelihood(nn.Module):
         """
         # more major rewrite for pytorch needed:
         self.train()
-        self.optimizer.zero_grad(set_to_none=True)
+        self.optimizer.zero_grad()
 
         loss_value = self.lml(x, y)
 
@@ -273,7 +273,7 @@ class LogMarginalLikelihood(nn.Module):
         self.optimizer.step()
 
         # Return the loss value
-        return loss_value.detach()
+        return loss_value
 
     def _check_data_validity(
         self, x: torch.Tensor, y: Union[torch.Tensor, None] = None
@@ -616,39 +616,27 @@ class BayesianLastLayer(LogMarginalLikelihood):
         uncert_type: str = "cov",
         return_scaled: bool = False,
         with_noise_variance: bool = False,
-        return_grad: bool = False,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
         """
         Predict the output of the model for a given input x.
         This evaluates the neural network model and computes the covariance or standard devaiation of the predictive distribution.
-
-        Predict can also return the gradient of the mean function with respect to the input data. This is useful for sensitivity analysis and uncertainty propagation.
-        The gradient can only be computed if m = 1 (a single sample is given as input).
 
         Args:
             x: Input data (numpy array of shape (m, n_x))
             uncert_type: Type of uncertainty to return. Can be 'cov' for the covariance matrix or 'std' for the standard deviation or 'none' for no uncertainty.
             return_scaled: Return the scaled (normalized) values of th prediction for mean and uncertainty.
             with_noise_variance: Add the (estimated) noise variance to the predictive covariance matrix. This is useful when comparing predictions to (noisy) test data, e.g. for the :py:meth:`score` method with ``scoring=lpd``.
-            return_grad: Return the gradient of the mean function with respect to the input data.
 
         Returns:
             y_pred: Predicted output (numpy array of shape (m, n_y))
             y_uncert (optional): Uncertainty of the prediction. In case of 'cov' this is the covariance matrix (numpy array of shape (m*n_y, m*n_y)). For 'std' this is the standard deviation (numpy array of shape (m, n_y))
-            grad (optional): Gradient of the mean function with respect to the input data (numpy array of shape (n_y, n_x))
         """
         # Sanity checks
         if not self.flags["prepare_prediction"]:
             raise RuntimeError("You need to call the prepare_prediction method first.")
         self._check_data_validity(x)
 
-        if return_grad:
-            raise NotImplementedError(
-                "Gradient computation is not ported to PyTorch yet."
-            )
-            y_hat, phi, grad = self.mean(x, return_scaled, return_grad)
-        else:
-            y_hat, phi = self.mean(x, return_scaled, return_grad)
+        y_hat, phi = self.mean(x, return_scaled)
 
         y_hat_covariance = self.covariance(
             phi, self.Sigma_p_bar, return_scaled, with_noise_variance
@@ -666,12 +654,9 @@ class BayesianLastLayer(LogMarginalLikelihood):
         else:
             raise ValueError(f"Uncertainty type {uncert_type} is not supported.")
 
-        if return_grad:
-            out.append(grad)
-
         return out
 
-    def mean(self, x, return_scaled=False, return_grad=False):
+    def mean(self, x, return_scaled=False):
         """
         Compute the mean of the predictive distribution.
         This method is also called from the :py:meth:`predict` method.
@@ -689,22 +674,8 @@ class BayesianLastLayer(LogMarginalLikelihood):
         else:
             x_scaled = x
 
-        if return_grad:
-            raise NotImplementedError(
-                "Gradient computation is not ported to PyTorch yet."
-            )
-            assert (
-                x.shape[0] == 1
-            ), "Gradient computation only supported for a single test point."
-            # For tracing we need to wrap x in a tf.Variable (only neccessary for gradient computation)
-            x_scaled = tf.Variable(x_scaled)
 
         phi_tilde, y_hat_scaled = self.joint_model(x_scaled)
-
-        if return_grad:
-            grad = tape.jacobian(y_hat_scaled, x_scaled)
-            grad = tf.squeeze(grad).numpy()
-            grad = np.diag(self.scaler.scaler_y.scale_) @ (grad)
 
         phi = torch.cat((phi_tilde, torch.ones((m_test, 1), device=phi_tilde.device)), axis=1)
 
@@ -717,9 +688,6 @@ class BayesianLastLayer(LogMarginalLikelihood):
                 )
             y_hat_unscaled = self.scaler.unscale(Y=y_hat_scaled)[0]
             out = [y_hat_unscaled, phi]
-
-        if return_grad:
-            out.append(grad)
 
         return out
 
