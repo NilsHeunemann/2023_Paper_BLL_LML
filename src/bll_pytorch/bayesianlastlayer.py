@@ -121,11 +121,12 @@ class LogMarginalLikelihood(nn.Module):
         # Update flags
         self.flags["setup_training"] = True
 
-    def get_Lambda_p_bar(self, Phi: torch.Tensor) -> torch.Tensor:
+    def get_Lambda_p_bar(self, Phi: torch.Tensor, weight:float = 1) -> torch.Tensor:
         """Compute the scaled posterior precision matrix.
 
         Args:
             Phi (torch.Tensor): Feature matrix of the neural network with bias of shape (m, n_phi).
+            weight (float): Weighting factor for the data term. Defaults to 1.
 
         Returns:
             Lambda_p_bar (torch.Tensor): Scaled posterior precision matrix of shape (n_phi, n_phi).
@@ -137,31 +138,53 @@ class LogMarginalLikelihood(nn.Module):
         if Phi.dim() != 2:
             raise ValueError("Phi must be a 2D tensor.")
 
-        Lambda_p_bar = Alpha_inv + torch.matmul(torch.t(Phi), Phi)
+        Lambda_p_bar = Alpha_inv + weight * torch.matmul(torch.t(Phi), Phi)
 
         return Lambda_p_bar
 
-    def lml(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def lml(self, x: torch.Tensor, y: torch.Tensor, n_data: Union[int, None] = None, n_batch: Union[int, None] = None) -> torch.Tensor:
         """Compute the log marginal likelihood of the model.
         This function is used for training the model.
 
         Args:
             x (torch.Tensor): Input data of shape (m, n_x).
             y (torch.Tensor): Output data of shape (m, n_y).
+            n_data (int, optional): Total number of data points. If None, the number of data points in x is used. Defaults to None.
+            n_batch (int, optional): Number of data points in the current batch. If None, the full dataset is used. Defaults to None.
         """
 
+        if n_data is None:
+            n_data = x.shape[0]
+
+        if n_batch is None:
+            n_batch = n_data
+            batch_weight = 1.0
+            add_jitter = False
+        else:
+            add_jitter = True
+            batch_weight = n_data / n_batch
+
         # Number of data points
-        m = x.shape[0]
+        # m = x.shape[0]
 
         inv_sigma2_e = torch.exp(-2 * self.log_sigma_e)
         inv_sigma2_w = torch.exp(-2 * self.log_sigma_w)
 
         Phi_tilde, y_hat = self.joint_model(x)  # , training=training)
         # Concat vector of ones to Phi_tilde
-        Phi = torch.cat([Phi_tilde, torch.ones((m, 1), device=Phi_tilde.device)], axis=1)
+        Phi = torch.cat([Phi_tilde, torch.ones((x.shape[0], 1), device=Phi_tilde.device)], axis=1)
 
-        Lambda_p_bar = self.get_Lambda_p_bar(Phi)
+        Lambda_p_bar = self.get_Lambda_p_bar(Phi, weight= batch_weight)
+        jitter = 1e-6
+        if add_jitter:
+            # Add small value to diagonal for numerical stability when using mini-batches
+            diag_scale = torch.trace(Lambda_p_bar).abs().clamp(min=1.0)
+            eps = jitter * diag_scale / self.n_phi
+            Lambda_try = Lambda_p_bar + eps * torch.eye(self.n_phi, device=Lambda_p_bar.device)
+            log_det_value = torch.logdet(Lambda_try)
 
+        else:
+            log_det_value = torch.logdet(Lambda_p_bar)
         # Retrieve weights and bias for affine operation in last layer
         w_1 = self.joint_model.last_layer.weight.T
         w_2 = torch.reshape(self.joint_model.last_layer.bias, (1, -1))
@@ -173,20 +196,20 @@ class LogMarginalLikelihood(nn.Module):
         dy = y - y_hat
         dy_square = torch.square(dy)
         w_square = torch.square(w)
-
+        
         # Add the individual terms to the negative log marginal likelihood
         J = 0
         J += self.n_y / (2) * np.log(2 * np.pi)
-        J += self.n_y / (2 * m) * torch.logdet(Lambda_p_bar)
-        J += self.n_y / (2 * m) * (self.n_phi) * self.log_alpha
+        J += self.n_y / (2 * n_data) * log_det_value
+        J += self.n_y / (2 * n_data) * (self.n_phi) * self.log_alpha
 
         for i in range(self.n_y):
             J += self.log_sigma_e[i]
             J += (
-                1 / (2 * m) * torch.sum(dy_square[:, i]) * inv_sigma2_e[i]
+                1 / (2 * n_batch)* torch.sum(dy_square[:, i]) * inv_sigma2_e[i]
             )  # second index due to all data points in batch for output i?
             J += (
-                1 / (2 * m) * torch.sum(w_square[:, i]) * inv_sigma2_w[i]
+                1 / (2 * n_data) * torch.sum(w_square[:, i]) * inv_sigma2_w[i]
             )  # second index for all weights of neuron i?
 
         return J
