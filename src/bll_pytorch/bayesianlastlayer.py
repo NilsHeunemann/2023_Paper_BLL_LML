@@ -121,7 +121,7 @@ class LogMarginalLikelihood(nn.Module):
         # Update flags
         self.flags["setup_training"] = True
 
-    def get_Lambda_p_bar(self, Phi: torch.Tensor, weight:float = 1) -> torch.Tensor:
+    def get_Lambda_p_bar(self, Phi: torch.Tensor, weight: float = 1) -> torch.Tensor:
         """Compute the scaled posterior precision matrix.
 
         Args:
@@ -142,7 +142,13 @@ class LogMarginalLikelihood(nn.Module):
 
         return Lambda_p_bar
 
-    def lml(self, x: torch.Tensor, y: torch.Tensor, n_data: Union[int, None] = None, n_batch: Union[int, None] = None) -> torch.Tensor:
+    def lml(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        n_data: Union[int, None] = None,
+        n_batch: Union[int, None] = None,
+    ) -> torch.Tensor:
         """Compute the log marginal likelihood of the model.
         This function is used for training the model.
 
@@ -154,10 +160,10 @@ class LogMarginalLikelihood(nn.Module):
         """
 
         if n_data is None:
-            n_data = x.shape[0] # Fallback: assume full batch if n_data not provided
-        
+            n_data = x.shape[0]  # Fallback: assume full batch if n_data not provided
+
         if n_batch is None:
-            n_batch = x.shape[0] # Fallback: assume full batch if n_batch not provided
+            n_batch = x.shape[0]  # Fallback: assume full batch if n_batch not provided
             batch_weight = 1.0
             add_jitter = False
         else:
@@ -174,18 +180,26 @@ class LogMarginalLikelihood(nn.Module):
 
         Phi_tilde, y_hat = self.joint_model(x)  # , training=training)
         # Concat vector of ones to Phi_tilde
-        Phi = torch.cat([Phi_tilde, torch.ones((x.shape[0], 1), device=Phi_tilde.device)], axis=1)
+        Phi = torch.cat(
+            [Phi_tilde, torch.ones((x.shape[0], 1), device=Phi_tilde.device)], axis=1
+        )
 
-        Lambda_p_bar = self.get_Lambda_p_bar(Phi, weight= batch_weight)
+        Lambda_p_bar = self.get_Lambda_p_bar(Phi, weight=batch_weight)
         jitter = 1e-6
         if add_jitter:
             # Add small value to diagonal for numerical stability when using mini-batches
             diag_scale = torch.trace(Lambda_p_bar).abs().clamp(min=1.0)
             eps = jitter * diag_scale / self.n_phi
-            Lambda_try = Lambda_p_bar + eps * torch.eye(self.n_phi, device=Lambda_p_bar.device)
-            log_det_value = torch.linalg.slogdet(Lambda_try.to(torch.float64)).logabsdet.to(Lambda_p_bar.dtype)
+            Lambda_try = Lambda_p_bar + eps * torch.eye(
+                self.n_phi, device=Lambda_p_bar.device
+            )
+            log_det_value = torch.linalg.slogdet(
+                Lambda_try.to(torch.float64)
+            ).logabsdet.to(Lambda_p_bar.dtype)
         else:
-            log_det_value = torch.linalg.slogdet(Lambda_p_bar.to(torch.float64)).logabsdet.to(Lambda_p_bar.dtype)
+            log_det_value = torch.linalg.slogdet(
+                Lambda_p_bar.to(torch.float64)
+            ).logabsdet.to(Lambda_p_bar.dtype)
         # Retrieve weights and bias for affine operation in last layer
         w_1 = self.joint_model.last_layer.weight.T
         w_2 = torch.reshape(self.joint_model.last_layer.bias, (1, -1))
@@ -197,7 +211,7 @@ class LogMarginalLikelihood(nn.Module):
         dy = y - y_hat
         dy_square = torch.square(dy)
         w_square = torch.square(w)
-        
+
         # Add the individual terms to the negative log marginal likelihood
         J = 0
         J += self.n_y / (2) * np.log(2 * np.pi)
@@ -207,7 +221,10 @@ class LogMarginalLikelihood(nn.Module):
         for i in range(self.n_y):
             J += self.log_sigma_e[i]
             J += (
-                1 / (2 * n_batch)* (torch.sum(dy_square[:, i]) + 1e-8) * inv_sigma2_e[i]
+                1
+                / (2 * n_batch)
+                * (torch.sum(dy_square[:, i]) + 1e-8)
+                * inv_sigma2_e[i]
             )  # second index due to all data points in batch for output i?
             J += (
                 1 / (2 * n_data) * (torch.sum(w_square[:, i]) + 1e-8) * inv_sigma2_w[i]
@@ -235,7 +252,9 @@ class LogMarginalLikelihood(nn.Module):
         # We are not using the prediction y_hat of the model
         Phi_tilde, _ = self.joint_model(x)
         # Concat vector of ones to Phi_tilde
-        Phi = torch.cat([Phi_tilde, torch.ones((m, 1), device=Phi_tilde.device)], axis=1)
+        Phi = torch.cat(
+            [Phi_tilde, torch.ones((m, 1), device=Phi_tilde.device)], axis=1
+        )
 
         Lambda_p_bar = self.get_Lambda_p_bar(Phi)
 
@@ -262,7 +281,11 @@ class LogMarginalLikelihood(nn.Module):
 
         # Add the individual terms to the negative log marginal likelihood
         J = 0
-        J += self.n_y / (2) * torch.log(torch.tensor(2 * np.pi, device=self.log_alpha.device))
+        J += (
+            self.n_y
+            / (2)
+            * torch.log(torch.tensor(2 * np.pi, device=self.log_alpha.device))
+        )
         J += self.n_y / (2 * m) * torch.logdet(Lambda_p_bar)
         J += self.n_y / (2 * m) * (self.n_phi) * self.log_alpha
 
@@ -380,7 +403,7 @@ class LogMarginalLikelihood(nn.Module):
             raise RuntimeError("Call setup_training() first.")
         self._check_data_validity(x, y)
         if batch_size is not None:
-            raise NotImplementedError('Batch training is not implemented yet.')
+            raise NotImplementedError("Batch training is not implemented yet.")
         if isinstance(val, (tuple, list)):
             self._check_data_validity(*val)
 
@@ -470,7 +493,13 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
     """
 
-    def __init__(self, joint_model: JointModel, scaler:Union[None, tools.Scaler]=None, *args, **kwargs):
+    def __init__(
+        self,
+        joint_model: JointModel,
+        scaler: Union[None, tools.Scaler] = None,
+        *args,
+        **kwargs,
+    ):
         # Sanity checks
         # TODO: port check to pytorch
         # if len(joint_model.outputs) != 2:
@@ -698,10 +727,11 @@ class BayesianLastLayer(LogMarginalLikelihood):
         else:
             x_scaled = x
 
-
         phi_tilde, y_hat_scaled = self.joint_model(x_scaled)
 
-        phi = torch.cat((phi_tilde, torch.ones((m_test, 1), device=phi_tilde.device)), axis=1)
+        phi = torch.cat(
+            (phi_tilde, torch.ones((m_test, 1), device=phi_tilde.device)), axis=1
+        )
 
         if return_scaled:
             out = [y_hat_scaled, phi]
@@ -839,7 +869,12 @@ class BayesianLastLayer(LogMarginalLikelihood):
 
         logp = -0.5 * self.n_y * torch.log(sigma_y_bar)
         logp += -0.5 * torch.diag(Lambda_y_bar @ dY @ self.Sigma_e_inv @ dY.T)
-        logp += -0.5 * torch.linalg.slogdet(2 * torch.tensor(np.pi, device=sigma_y_bar.device) * self.Sigma_e)[1]
+        logp += (
+            -0.5
+            * torch.linalg.slogdet(
+                2 * torch.tensor(np.pi, device=sigma_y_bar.device) * self.Sigma_e
+            )[1]
+        )
 
         if aggregate == "none":
             return logp
@@ -860,7 +895,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
             y_scaled = self.scaler.scale(Y=y)[0]
         else:
             y_scaled = y
-        
+
         y_pred_scaled, _ = self.predict(X, uncert_type="std", return_scaled=True)
         mse = torch.mean(torch.square(y_pred_scaled - y_scaled)).flatten()
         return mse
@@ -950,7 +985,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
             save_dict["Sigma_e"] = self.Sigma_e
             save_dict["Sigma_e_inv"] = self.Sigma_e_inv
         return save_dict
-    
+
     @classmethod
     def from_dict(cls, save_dict: dict):
         """
@@ -980,7 +1015,7 @@ class BayesianLastLayer(LogMarginalLikelihood):
         """
         save_dict = self.get_save_dict()
         torch.save(save_dict, path)
-    
+
     @classmethod
     def load(cls, path: Union[str, os.PathLike]):
         """
