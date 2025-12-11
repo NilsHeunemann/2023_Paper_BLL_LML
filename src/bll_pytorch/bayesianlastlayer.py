@@ -154,13 +154,15 @@ class LogMarginalLikelihood(nn.Module):
         """
 
         if n_data is None:
-            n_data = x.shape[0]
-
+            n_data = x.shape[0] # Fallback: assume full batch if n_data not provided
+        
         if n_batch is None:
-            n_batch = n_data
+            n_batch = x.shape[0] # Fallback: assume full batch if n_batch not provided
             batch_weight = 1.0
             add_jitter = False
         else:
+            # If n_batch is explicitly provided (from _train_step), it's the actual batch size
+            # n_data is the total number of samples
             add_jitter = True
             batch_weight = n_data / n_batch
 
@@ -181,10 +183,9 @@ class LogMarginalLikelihood(nn.Module):
             diag_scale = torch.trace(Lambda_p_bar).abs().clamp(min=1.0)
             eps = jitter * diag_scale / self.n_phi
             Lambda_try = Lambda_p_bar + eps * torch.eye(self.n_phi, device=Lambda_p_bar.device)
-            log_det_value = torch.logdet(Lambda_try)
-
+            log_det_value = torch.linalg.slogdet(Lambda_try.to(torch.float64)).logabsdet.to(Lambda_p_bar.dtype)
         else:
-            log_det_value = torch.logdet(Lambda_p_bar)
+            log_det_value = torch.linalg.slogdet(Lambda_p_bar.to(torch.float64)).logabsdet.to(Lambda_p_bar.dtype)
         # Retrieve weights and bias for affine operation in last layer
         w_1 = self.joint_model.last_layer.weight.T
         w_2 = torch.reshape(self.joint_model.last_layer.bias, (1, -1))
@@ -206,10 +207,10 @@ class LogMarginalLikelihood(nn.Module):
         for i in range(self.n_y):
             J += self.log_sigma_e[i]
             J += (
-                1 / (2 * n_batch)* torch.sum(dy_square[:, i]) * inv_sigma2_e[i]
+                1 / (2 * n_batch)* (torch.sum(dy_square[:, i]) + 1e-8) * inv_sigma2_e[i]
             )  # second index due to all data points in batch for output i?
             J += (
-                1 / (2 * n_data) * torch.sum(w_square[:, i]) * inv_sigma2_w[i]
+                1 / (2 * n_data) * (torch.sum(w_square[:, i]) + 1e-8) * inv_sigma2_w[i]
             )  # second index for all weights of neuron i?
 
         return J
